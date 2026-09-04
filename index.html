@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>مطبخنا - اقتراح وجبة اليوم</title>
+    <!-- استدعاء خط النسخ من Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap" rel="stylesheet">
@@ -104,6 +105,7 @@
             background-color: var(--secondary-color);
         }
 
+        /* تنسيق الزر المعطل */
         .btn:disabled {
             background-color: #bdc3c7 !important;
             cursor: not-allowed;
@@ -298,7 +300,6 @@
         <!-- 2. صفحة الأكلات المسجلة -->
         <div id="page-display" class="page">
             <h2>قائمة الأكلات المسجلة</h2>
-            <input type="text" id="search-input" placeholder="🔍 ابحث عن أكلة بالاسم..." oninput="filterRecipes()">
             <ul id="all-recipes-list" class="item-list"></ul>
         </div>
 
@@ -337,43 +338,25 @@
         </div>
     </div>
 
-    <!-- Firebase SDK Setup مع Dactyl/Anonymous Auth -->
+    <!-- Firebase SDK Setup -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, set, push, onValue, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
         const firebaseConfig = {
-    apiKey: "ضع_مفتاح_API_KEY_الخاص_بمشروعك_هنا",
-    databaseURL: "https://cook-book-6d572-default-rtdb.europe-west1.firebasedatabase.app/",
-    authDomain: "cook-book-6d572.firebaseapp.com",
-    projectId: "cook-book-6d572"
-};
+            databaseURL: "https://cook-book-6d572-default-rtdb.europe-west1.firebasedatabase.app/"
+        };
+
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
-        const auth = getAuth(app);
 
         window.recipesData = {};
         let editingRecipeId = null;
         let originalName = "";
         let originalIngredients = "";
         let currentRecipe = null;
-        let currentUserUid = null;
-        let userRecipesRef = null;
 
-        // --- تسجيل الدخول المجهول التلقائي (الاستمرار بنفس الجلسة) ---
-        signInAnonymously(auth).catch((error) => {
-            console.error("خطأ المصادقة الآمنة:", error);
-        });
-
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                currentUserUid = user.uid;
-                userRecipesRef = ref(db, `users/${currentUserUid}/recipes`);
-                listenToRecipes();
-            }
-        });
-
+        // --- مراقبة التغييرات لزر التعديل ---
         function checkEditChanges() {
             if (!editingRecipeId) return;
 
@@ -381,6 +364,7 @@
             const currentIngredients = document.getElementById('new-recipe-ingredients').value.trim();
             const saveBtn = document.getElementById('save-recipe-btn');
 
+            // تفعيل الزر فقط إذا تغير الاسم أو المكونات عن القيمة الأصلية
             const isChanged = (currentName !== originalName) || (currentIngredients !== originalIngredients);
             saveBtn.disabled = !isChanged;
         }
@@ -391,6 +375,7 @@
                 document.getElementById('gemini-api-key').value = savedKey;
             }
 
+            // الاستماع لتغييرات المدخلات
             document.getElementById('new-recipe-name').addEventListener('input', checkEditChanges);
             document.getElementById('new-recipe-ingredients').addEventListener('input', checkEditChanges);
         });
@@ -502,7 +487,7 @@
                 const data = await response.json();
                 if (data.candidates && data.candidates[0].content.parts[0].text) {
                     document.getElementById('new-recipe-ingredients').value = data.candidates[0].content.parts[0].text.trim();
-                    checkEditChanges();
+                    checkEditChanges(); // إشعار تغيير المكونات بعد جلب الذكاء الاصطناعي
                     showToast("تم جلب المكونات بنجاح ✨");
                 } else {
                     showToast("تعذر جلب المكونات، تأكد من المفتاح.");
@@ -515,54 +500,40 @@
             }
         }
 
-        // --- الاستماع إلى بيانات المستخدم المسجل فقط ---
-        function listenToRecipes() {
-            if (!userRecipesRef) return;
+        const recipesRef = ref(db, 'recipes');
 
-            onValue(userRecipesRef, (snapshot) => {
-                const data = snapshot.val() || {};
-                window.recipesData = data;
-                renderRecipesList(data);
-            });
-        }
-
-        function renderRecipesList(data) {
+        onValue(recipesRef, (snapshot) => {
+            const data = snapshot.val() || {};
+            window.recipesData = data;
+            
             const selectEl = document.getElementById('manual-select');
             const listEl = document.getElementById('all-recipes-list');
-            const query = document.getElementById('search-input').value.toLowerCase().trim();
-
+            
             selectEl.innerHTML = '<option value="">-- اختاري من القائمة --</option>';
             listEl.innerHTML = '';
 
             for (let id in data) {
-                let name = data[id].name;
-                
                 let opt = document.createElement('option');
                 opt.value = id;
-                opt.textContent = name;
+                opt.textContent = data[id].name;
                 selectEl.appendChild(opt);
 
-                if (query === '' || name.toLowerCase().includes(query)) {
-                    let li = document.createElement('li');
-                    li.innerHTML = `
-                        <div>
-                            <strong>${name}</strong>
-                            <div style="font-size:0.9rem; color:#666; margin-top:4px;">${data[id].ingredients.join(' • ')}</div>
-                        </div>
-                        <div class="action-btns">
-                            <button style="background:var(--edit-color); color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer;" onclick="editRecipe('${id}')">تعديل</button>
-                            <button style="background:var(--danger-color); color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer;" onclick="deleteRecipe('${id}')">حذف</button>
-                        </div>
-                    `;
-                    listEl.appendChild(li);
-                }
+                let li = document.createElement('li');
+                li.innerHTML = `
+                    <div>
+                        <strong>${data[id].name}</strong>
+                        <div style="font-size:0.9rem; color:#666; margin-top:4px;">${data[id].ingredients.join(' • ')}</div>
+                    </div>
+                    <div class="action-btns">
+                        <button style="background:var(--edit-color); color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer;" onclick="editRecipe('${id}')">تعديل</button>
+                        <button style="background:var(--danger-color); color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer;" onclick="deleteRecipe('${id}')">حذف</button>
+                    </div>
+                `;
+                listEl.appendChild(li);
             }
-        }
+        });
 
-        window.filterRecipes = function() {
-            renderRecipesList(window.recipesData);
-        }
-
+        // --- بدء التعديل وتجميد زر الحفظ حتى حدوث تغيير ---
         window.editRecipe = function(id) {
             const recipe = window.recipesData[id];
             if (!recipe) return;
@@ -577,13 +548,14 @@
             
             const saveBtn = document.getElementById('save-recipe-btn');
             saveBtn.textContent = "تحديث البيانات";
-            saveBtn.disabled = true;
+            saveBtn.disabled = true; // الزر معطل حتى يحدث تغيير
 
             document.getElementById('cancel-edit-btn').style.display = "block";
 
             switchPage('add');
         }
 
+        // --- إلغاء التعديل إعادة ضبط النموذج ---
         window.cancelEdit = function() {
             editingRecipeId = null;
             originalName = "";
@@ -602,6 +574,7 @@
             showToast("تم إلغاء التعديل ولم يتم حفظ أي تغييرات ℹ️");
         }
 
+        // --- الحفظ / التحديث ---
         window.addOrUpdateRecipe = function() {
             const name = document.getElementById('new-recipe-name').value.trim();
             const rawIngredientsText = document.getElementById('new-recipe-ingredients').value;
@@ -633,7 +606,7 @@
                 }
 
                 if (isEdit) {
-                    set(ref(db, `users/${currentUserUid}/recipes/${editingRecipeId}`), {
+                    set(ref(db, `recipes/${editingRecipeId}`), {
                         name: name,
                         ingredients: cleanedIngredients
                     }).then(() => {
@@ -642,7 +615,7 @@
                         switchPage('display');
                     });
                 } else {
-                    const newRecipeRef = push(userRecipesRef);
+                    const newRecipeRef = push(recipesRef);
                     set(newRecipeRef, {
                         name: name,
                         ingredients: cleanedIngredients
@@ -656,12 +629,13 @@
             });
         }
 
+        // --- الحذف ---
         window.deleteRecipe = function(id) {
             const recipe = window.recipesData[id];
             const recipeName = recipe ? recipe.name : "";
 
             showConfirmModal(`⚠️ هل أنت متأكد حقاً من حذف أكلة (${recipeName})؟`, () => {
-                remove(ref(db, `users/${currentUserUid}/recipes/${id}`));
+                remove(ref(db, `recipes/${id}`));
                 showToast("تم حذف الأكلة بنجاح.");
                 if (editingRecipeId === id) {
                     window.cancelEdit();
@@ -669,6 +643,7 @@
             });
         }
 
+        // --- عرض وإقتراح الأكلات ---
         window.getRandomRecipe = function() {
             const keys = Object.keys(window.recipesData);
             if (keys.length === 0) {
@@ -701,6 +676,7 @@
             document.getElementById('recipe-result').style.display = 'block';
         }
 
+        // --- مشاركة المكونات عبر الواتساب ---
         window.shareOnWhatsApp = function() {
             if (!currentRecipe) return;
 
