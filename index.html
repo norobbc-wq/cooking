@@ -344,9 +344,11 @@
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
         const firebaseConfig = {
-            databaseURL: "https://cook-book-6d572-default-rtdb.europe-west1.firebasedatabase.app/"
-        };
-
+    apiKey: "ضع_مفتاح_API_KEY_الخاص_بمشروعك_هنا",
+    databaseURL: "https://cook-book-6d572-default-rtdb.europe-west1.firebasedatabase.app/",
+    authDomain: "cook-book-6d572.firebaseapp.com",
+    projectId: "cook-book-6d572"
+};
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
         const auth = getAuth(app);
