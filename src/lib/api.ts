@@ -8,6 +8,10 @@ export const api = {
   households: async () => unwrap(await client().from('households').select('*').order('created_at')) as Household[],
   createHousehold: async (name: string) => unwrap(await client().rpc('create_household', { household_name: name }).single()) as Household,
   joinHousehold: async (code: string) => unwrap(await client().rpc('join_household_by_code', { raw_code: code }).single()) as Household,
+  deleteAccount: async () => {
+    const { error } = await client().functions.invoke('delete-account')
+    if (error) throw new Error(error.message)
+  },
   members: async (householdId: string) => {
     const db = client()
     const members = unwrap(await db.from('household_members').select('*').eq('household_id', householdId)) as HouseholdMember[]
