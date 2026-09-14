@@ -1,0 +1,14 @@
+begin;
+select plan(10);
+select ok(tests.rls_enabled('public'::name, 'profiles'::name), 'profiles uses RLS');
+select ok(tests.rls_enabled('public'::name, 'households'::name), 'households uses RLS');
+select ok(tests.rls_enabled('public'::name, 'household_members'::name), 'memberships use RLS');
+select ok(tests.rls_enabled('public'::name, 'dishes'::name), 'dishes use RLS');
+select ok(tests.rls_enabled('public'::name, 'ingredients'::name), 'ingredients use RLS');
+select ok(tests.rls_enabled('public'::name, 'shopping_lists'::name), 'shopping lists use RLS');
+select ok(tests.rls_enabled('public'::name, 'shopping_items'::name), 'shopping items use RLS');
+select ok(tests.rls_enabled('public'::name, 'meal_plan'::name), 'meal plan uses RLS');
+select is_empty('select * from public.dishes', 'anonymous database role sees no dishes');
+select is_empty('select * from public.shopping_lists', 'anonymous database role sees no shopping lists');
+select * from finish();
+rollback;

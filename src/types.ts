@@ -1,0 +1,9 @@
+export type HouseholdRole = 'owner' | 'member'
+export type Profile = { id: string; display_name: string; created_at: string; updated_at: string }
+export type Household = { id: string; name: string; owner_id: string; invite_code: string; created_at: string; updated_at: string }
+export type HouseholdMember = { household_id: string; user_id: string; role: HouseholdRole; joined_at: string; profiles?: Pick<Profile, 'display_name'> | null }
+export type Ingredient = { id: string; dish_id: string; name: string; quantity_text: string; position: number; created_at: string }
+export type Dish = { id: string; household_id: string; name: string; description: string; category: string; is_favorite: boolean; created_by: string; created_at: string; updated_at: string; ingredients: Ingredient[] }
+export type ShoppingItem = { id: string; shopping_list_id: string; name: string; checked: boolean; created_at: string; updated_at: string }
+export type ShoppingList = { id: string; household_id: string; created_by: string; created_at: string; updated_at: string; shopping_items: ShoppingItem[] }
+export type MealPlanItem = { id: string; household_id: string; plan_date: string; dish_id: string; created_by: string; created_at: string; dishes: Pick<Dish, 'id' | 'name' | 'ingredients'> | null }
