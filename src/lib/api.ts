@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import type { Dish, Household, HouseholdMember, Ingredient, MealPlanItem, ShoppingItem, ShoppingList } from '../types'
+import type { Dish, Household, HouseholdMember, Ingredient, MealPlanItem, Profile, ShoppingItem, ShoppingList } from '../types'
 
 function client() { if (!supabase) throw new Error('لم يتم إعداد الاتصال بالخدمة بعد.'); return supabase }
 function unwrap<T>({ data, error }: { data: T | null; error: { message: string } | null }) { if (error) throw new Error(error.message); return data as T }
@@ -8,7 +8,14 @@ export const api = {
   households: async () => unwrap(await client().from('households').select('*').order('created_at')) as Household[],
   createHousehold: async (name: string) => unwrap(await client().rpc('create_household', { household_name: name }).single()) as Household,
   joinHousehold: async (code: string) => unwrap(await client().rpc('join_household_by_code', { raw_code: code }).single()) as Household,
-  members: async (householdId: string) => unwrap(await client().from('household_members').select('*, profiles(display_name)').eq('household_id', householdId)) as HouseholdMember[],
+  members: async (householdId: string) => {
+    const db = client()
+    const members = unwrap(await db.from('household_members').select('*').eq('household_id', householdId)) as HouseholdMember[]
+    if (!members.length) return members
+    const profiles = unwrap(await db.from('profiles').select('id, display_name').in('id', members.map((member) => member.user_id))) as Pick<Profile, 'id' | 'display_name'>[]
+    const byId = new Map(profiles.map((profile) => [profile.id, profile]))
+    return members.map((member) => ({ ...member, profiles: byId.get(member.user_id) ?? null }))
+  },
   dishes: async (householdId: string) => unwrap(await client().from('dishes').select('*, ingredients(*)').eq('household_id', householdId).order('created_at')) as Dish[],
   saveDish: async (householdId: string, userId: string, dish: Partial<Dish>, ingredients: Omit<Ingredient, 'id' | 'dish_id' | 'created_at'>[]) => {
     const db = client(); const payload = { name: dish.name?.trim(), description: dish.description?.trim() ?? '', category: dish.category?.trim() ?? '', is_favorite: Boolean(dish.is_favorite), household_id: householdId, created_by: userId }
